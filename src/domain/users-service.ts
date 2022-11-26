@@ -12,11 +12,12 @@ import {TokensType} from "../types/token_types";
 
 export class UsersService {
 
-    constructor(protected usersRepositories: UsersRepositories, protected deviceRepositories: DeviceRepositories) {}
+    constructor(protected usersRepositories: UsersRepositories, protected deviceRepositories: DeviceRepositories) {
+    }
 
     async createUser(login: string, email: string, password: string): Promise<UsersViewType | null> {
         const passwordHash = await this._generateHash(password)
-        const user = new UsersAcountDBType (
+        const user = new UsersAcountDBType(
             new ObjectId(),
             {
                 login,
@@ -54,9 +55,11 @@ export class UsersService {
         }
         return newUser
     }
+
     async deleteUserById(id: string): Promise<boolean> {
         return this.usersRepositories.deleteUserById(id)
     }
+
     async login(loginOrEmail: string, password: string, ipAddress: string, deviceName: string): Promise<TokensType | null> {
         const user: any = await this.usersRepositories.findByLoginOrEmail(loginOrEmail)
         if (!user) return null;
@@ -69,6 +72,7 @@ export class UsersService {
         await this.deviceRepositories.createDevice(userId, ipAddress, deviceName, deviceId, payloadNew.exp, payloadNew.iat)
         return token
     }
+
     async refreshToken(payload: PayloadType) {
         const newTokens = await jwtService.createJwt(payload.userId, payload.deviceId)
         const payloadNew = await jwtService.verifyToken(newTokens.refreshToken)
@@ -76,6 +80,7 @@ export class UsersService {
         if (!updateDevice) return null
         return newTokens
     }
+
     async verifyTokenForDeleteDevice(payload: PayloadType) {
         const device = await this.deviceRepositories.findDeviceForDelete(payload)
         if (!device) return null
@@ -83,12 +88,15 @@ export class UsersService {
         if (!isDeleted) return null
         return true
     }
+
     async _generateHash(password: string) {
         return await bcrypt.hash(password, 10)
     }
+
     async _compareHash(password: string, hash: string): Promise<boolean> {
         return await bcrypt.compare(password, hash)
     }
+
     async confirmByCode(code: string): Promise<boolean> {
         const user = await this.usersRepositories.findUserByConfirmationCode(code)
         if (!user) return false
@@ -97,6 +105,7 @@ export class UsersService {
         if (user.emailConfirmation.expirationDate < new Date()) return false;
         return await this.usersRepositories.updateConfirmation(user._id)
     }
+
     async recoveryByCode(newPassword: string, code: string): Promise<boolean> {
         const user = await this.usersRepositories.findUserByRecoveryCode(code)
         if (!user) return false
@@ -106,6 +115,7 @@ export class UsersService {
         const passwordHash = await this._generateHash(newPassword)
         return await this.usersRepositories.updateRecovery(user._id, passwordHash)
     }
+
     async resendingEmail(email: string) {
         const user = await this.usersRepositories.findByLoginOrEmail(email)
         if (!user) return false;
@@ -114,9 +124,7 @@ export class UsersService {
         const code: any = {
             emailConfirmation: {
                 confirmationCode: uuidv4(),
-                expirationDate: add(new Date(), {
-                    hours: 1
-                })
+                expirationDate: add(new Date(), {hours: 1})
             }
         }
         const newUser = await this.usersRepositories.updateCodeConfirmation(user._id, code.emailConfirmation.confirmationCode, code.emailConfirmation.expirationDate)
@@ -128,6 +136,7 @@ export class UsersService {
         }
         return newUser
     }
+
     async recoveryEmail(email: string) {
         const user = await this.usersRepositories.findByLoginOrEmail(email)
         if (!user) return true;

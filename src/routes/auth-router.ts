@@ -27,7 +27,7 @@ authRoute.post('/login', limiter, loginValidations, async (req: RequestWithBody<
    const ipAddress = req.ip
    const deviceName = req.headers["user-agent"]
    const token = await usersService.login(req.body.loginOrEmail, req.body.password, ipAddress, deviceName!)
-   if (token) {
+   if (token){
       res.cookie('refreshToken', token.refreshToken, {httpOnly: true, secure: true});
       res.send({'accessToken': token.accessToken})
       return

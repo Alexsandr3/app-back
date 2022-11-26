@@ -41,10 +41,12 @@ blogsRouter.get('/', pageValidations, async (req: RequestWithQeury<QueryParams_G
 })
 blogsRouter.post('/', blogsValidations, async (req: RequestWithBody<BodyParams_BlogInputModel>, res: Response<BlogsViewType>) => {
     const newBlog = await blogsService.createBlog(req.body.name, req.body.description, req.body.websiteUrl)
+    console.log("00 - newBlog", newBlog)
     return res.status(HTTP_STATUSES.CREATED_201).send(newBlog)
 })
 blogsRouter.get('/:id', checkIdValidForMongodb, async (req: RequestWithParams<URIParams_BlogModel>, res: Response<BlogsViewType>) => {
     const blog = await blogsQueryRepositories.findBlogById(req.params.id)
+    console.log("01 - blog", blog)
     if (!blog) {
         res.sendStatus(HTTP_STATUSES.NOT_FOUND_404)
         return;
