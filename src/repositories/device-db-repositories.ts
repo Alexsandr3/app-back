@@ -1,14 +1,8 @@
 import {DeviceModelClass} from "./schemas";
 import {ObjectId} from "mongodb";
 import {DeviceDBType} from "../types/device_types";
+import {PayloadType} from "../types/payloadType";
 
-export class PayloadType {
-    constructor(public userId: string,
-                public deviceId: string,
-                public iat: number,
-                public exp: number) {
-    }
-}
 
 
 export class DeviceRepositories {

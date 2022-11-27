@@ -1,6 +1,6 @@
 import {PostsRepositories} from "../repositories/posts-db-repositories";
 import {PostsViewType} from "../types/posts_types";
-import {CommentsViewType} from "../types/comments_types";
+import {CommentsViewType, LikeStatusType} from "../types/comments_types";
 import {CommentsRepositories} from "../repositories/comments-db-repositories";
 
 export class PostsService {
@@ -23,6 +23,11 @@ export class PostsService {
         const post = await this.postsRepositories.findPost(id)
         if (!post) return null
         return await this.commentsRepositories.createCommentByIdPost(post._id, content, userId, userLogin)
+    }
+    async updateLikeStatus(id: string, likeStatus: LikeStatusType, userId: string): Promise<boolean> {
+        const post = await this.postsRepositories.findPost(id)
+        if (!post) return false
+        return this.postsRepositories.updateStatusPostById(id, userId, likeStatus)
     }
 }
 

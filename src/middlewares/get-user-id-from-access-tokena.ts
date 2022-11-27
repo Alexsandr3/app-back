@@ -2,7 +2,7 @@ import {NextFunction, Request, Response} from "express";
 import {jwtService} from "../application/jwt-servise";
 
 
-export const getUserIdFromRefreshTokena = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserIdFromAccessTokena = async (req: Request, res: Response, next: NextFunction) => {
     let userId = null
     if (!req.headers.authorization) {
        userId = null

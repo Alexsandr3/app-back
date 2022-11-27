@@ -3,8 +3,9 @@ import {BlogsDBType, BlogsViewType, PaginatorPostsBlogType} from "../types/blogs
 import {PaginatorBlogType} from "../types/blogs_types";
 import {PostsViewType} from "../types/posts_types";
 import {PaginatorType} from "../types/PaginatorType";
-import {postWithNewId} from "./posts-query-repositories";
 import {BlogModelClass, PostModelClass} from "./schemas";
+import {PayloadType} from "../types/payloadType";
+import {postsQueryRepositories} from "../composition-root";
 
 
 
@@ -52,23 +53,25 @@ export class BlogsQueryRepositories {
             return this.blogWithNewId(result)
         }
     }
-    async findPostsByIdBlog(blogId: string, data: PaginatorPostsBlogType): Promise<PaginatorType<PostsViewType[]> | null> {
+
+    async findPostsByIdBlog(blogId: string, data: PaginatorPostsBlogType, user: PayloadType): Promise<PaginatorType<PostsViewType[]> | null> {
         const blog = await this.findBlogById(blogId)
         if (!blog) return null
-        const foundPosts = (await PostModelClass
+        const foundPosts = await PostModelClass
             .find({blogId})
             .skip((data.pageNumber - 1) * data.pageSize)
             .limit(data.pageSize)
-            .sort({[data.sortBy]: data.sortDirection}).lean())
-            .map(postWithNewId)
+            .sort({[data.sortBy]: data.sortDirection}).lean()
+        const mappedPosts = foundPosts.map(async post => await postsQueryRepositories.postForView(post, user))
+        const itemsPosts = await Promise.all(mappedPosts)
         const totalCountPosts = await PostModelClass.countDocuments(blogId ? {blogId} : {})
         const pagesCountRes = Math.ceil(totalCountPosts / data.pageSize)
-        return {
-            pagesCount: pagesCountRes,
-            page: data.pageNumber,
-            pageSize: data.pageSize,
-            totalCount: totalCountPosts,
-            items: foundPosts
-        }
+        return new PaginatorType(
+            pagesCountRes,
+            data.pageNumber,
+            data.pageSize,
+            totalCountPosts,
+            itemsPosts
+        )
     }
 }

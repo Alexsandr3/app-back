@@ -59,7 +59,7 @@ authRoute.post('/new-password', limiter, passwordValidations, async (req: Reques
    }
 })
 authRoute.post('/refresh-token', checkRefreshTokena, async (req: Request, res: Response) => {
-   const token = await usersService.refreshToken(req.payload)
+   const token = await usersService.refresh(req.payload)
    if (token) {
       res.cookie('refreshToken', token.refreshToken, {httpOnly: true, secure: true});
       res.send({'accessToken': token.accessToken})

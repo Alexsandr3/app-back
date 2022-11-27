@@ -20,19 +20,26 @@ import {PostsViewType} from "../types/posts_types";
 import {URIParams_PostModel} from "../models/URIParams_PostModel";
 import {HTTP_STATUSES} from "../const/HTTP response status codes";
 import {PaginatorType} from "../types/PaginatorType";
-import {preCommentsValidation} from "../middlewares/comments-validation-middleware";
+import {preCommentsValidation, validationLikeStatusMiddleware} from "../middlewares/comments-validation-middleware";
 import {authMiddleware} from "../middlewares/auth-Headers-Validations-Middleware";
 import {pageNumberValidation, pageSizeValidation} from "../middlewares/users-validation-middleware";
 import {BodyParams_CommentInputModel} from "../models/BodyParams_CommentInputModel";
 import {postsQueryRepositories, postsService} from "../composition-root";
 import {CommentsViewType} from "../types/comments_types";
-import {getUserIdFromRefreshTokena} from "../middlewares/get-UserId-from-refresh-tokena";
+import {BodyParams_LikeInputModel} from "../models/BodyParams_LikeInputModel";
+import {getUserIdFromRefreshTokena} from "../middlewares/get-user-id-from-refresh-tokena";
 
 
 export const postsRoute = Router({})
 
-
-postsRoute.get('/', pageValidations, async (req: RequestWithQeury<QeuryParams_GetPostsModel>, res: Response<PaginatorType<PostsViewType[]>>) => {
+postsRoute.put('/:id/like-status', authMiddleware, validationLikeStatusMiddleware, async (req: RequestWithParamsAndBody<{ id: string }, BodyParams_LikeInputModel>, res: Response) => {
+    const result = await postsService.updateLikeStatus(req.params.id, req.body.likeStatus, req.user.id)
+    if (!result) {
+        return res.sendStatus(HTTP_STATUSES.NOT_FOUND_404)
+    }
+    return res.sendStatus(HTTP_STATUSES.NO_CONTENT_204)
+})
+postsRoute.get('/', pageValidations, getUserIdFromRefreshTokena, async (req: RequestWithQeury<QeuryParams_GetPostsModel>, res: Response<PaginatorType<PostsViewType[]>>) => {
     let data = req.query
     let dataForRepos = {
         pageNumber: 1,
@@ -41,7 +48,7 @@ postsRoute.get('/', pageValidations, async (req: RequestWithQeury<QeuryParams_Ge
         sortDirection: SortDirectionType.Desc,
         ...data,
     }
-    const posts = await postsQueryRepositories.findPosts(dataForRepos);
+    const posts = await postsQueryRepositories.findPosts(dataForRepos, req.user);
     return res.send(posts)
 })
 postsRoute.post('/', prePostsValidation, async (req: RequestWithBody<BodyParams_PostInputModel>, res: Response<PostsViewType | null>) => {
@@ -52,8 +59,8 @@ postsRoute.post('/', prePostsValidation, async (req: RequestWithBody<BodyParams_
     const newPost = await postsService.createPost(title, shortDescription, content, blogId)
     return res.status(HTTP_STATUSES.CREATED_201).send(newPost)
 })
-postsRoute.get('/:id', checkIdValidForMongodb, async (req: RequestWithParams<URIParams_PostModel>, res: Response<PostsViewType>) => {
-    const post = await postsQueryRepositories.findByIdPost(req.params.id)
+postsRoute.get('/:id', checkIdValidForMongodb, getUserIdFromRefreshTokena, async (req: RequestWithParams<URIParams_PostModel>, res: Response<PostsViewType>) => {
+    const post = await postsQueryRepositories.findByIdPost(req.params.id, req.user)
     if (!post) return res.sendStatus(HTTP_STATUSES.NOT_FOUND_404)
     return res.send(post)
 })
@@ -78,7 +85,7 @@ postsRoute.delete('/:id', checkIdValidForMongodb, checkAutoritionMiddleware, asy
         return res.sendStatus(HTTP_STATUSES.NO_CONTENT_204)
     }
 })
-postsRoute.post('/:postId/comments', authMiddleware, checkPostIdValidForMongodb, preCommentsValidation, async (req: RequestWithParamsAndBody<{postId: string}, BodyParams_CommentInputModel>, res: Response<CommentsViewType | null>) => {
+postsRoute.post('/:postId/comments', authMiddleware, checkPostIdValidForMongodb, preCommentsValidation, async (req: RequestWithParamsAndBody<{ postId: string }, BodyParams_CommentInputModel>, res: Response<CommentsViewType | null>) => {
     const postId = req.params.postId
     const content = req.body.content
     if (!req.user) {
@@ -95,12 +102,11 @@ postsRoute.post('/:postId/comments', authMiddleware, checkPostIdValidForMongodb,
     }
     return res.status(HTTP_STATUSES.CREATED_201).send(createdCommetn)
 })
-
 postsRoute.get('/:postId/comments', getUserIdFromRefreshTokena, checkPostIdValidForMongodb, pageNumberValidation, pageSizeValidation, async (req: RequestWithParamsAndQeury<{ postId: string }, QeuryParams_GetPostsModel>,
-                                                                                                                                             res: Response) => {
+                                                                                                                                            res: Response) => {
 
     let data = req.query
-    let userId = req.userId
+    let user = req.user
     let postId = req.params.postId
     let dataForReposit = {
         pageNumber: 1,
@@ -109,7 +115,7 @@ postsRoute.get('/:postId/comments', getUserIdFromRefreshTokena, checkPostIdValid
         sortDirection: SortDirectionType.Desc,
         ...data,
     }
-    const comments = await postsQueryRepositories.findCommentsByIdPost(postId, dataForReposit, userId)
+    const comments = await postsQueryRepositories.findCommentsByIdPost(postId, dataForReposit, user)
     if (!comments) {
         res.sendStatus(HTTP_STATUSES.NOT_FOUND_404)
         return;

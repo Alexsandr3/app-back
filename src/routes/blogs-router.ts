@@ -20,6 +20,7 @@ import {URIParams_BlogModel} from "../models/URIParams_BlogModel";
 import {HTTP_STATUSES} from "../const/HTTP response status codes";
 import {PaginatorType} from "../types/PaginatorType";
 import {blogsQueryRepositories, blogsService} from "../composition-root";
+import {getUserIdFromRefreshTokena} from "../middlewares/get-user-id-from-refresh-tokena";
 
 
 export const blogsRouter = Router({})
@@ -53,7 +54,7 @@ blogsRouter.get('/:id', checkIdValidForMongodb, async (req: RequestWithParams<UR
     }
     return res.send(blog)
 })
-blogsRouter.get('/:blogId/posts', checkBlogIdValidForMongodb, pageValidations, async (req: RequestWithParamsAndQeury<{ blogId: string }, QeuryParams_GetPostsModel>, //+++
+blogsRouter.get('/:blogId/posts', checkBlogIdValidForMongodb, pageValidations, getUserIdFromRefreshTokena, async (req: RequestWithParamsAndQeury<{ blogId: string }, QeuryParams_GetPostsModel>, //+++
                                                                                       res: Response<PaginatorType<PostsViewType[]>>) => {
     let data = req.query
     let blogId = req.params.blogId
@@ -64,7 +65,7 @@ blogsRouter.get('/:blogId/posts', checkBlogIdValidForMongodb, pageValidations, a
         sortDirection: SortDirectionType.Desc,
         ...data,
     }
-    const posts = await blogsQueryRepositories.findPostsByIdBlog(blogId, dataForReposit)
+    const posts = await blogsQueryRepositories.findPostsByIdBlog(blogId, dataForReposit, req.user)
     if (!posts) {
         res.sendStatus(HTTP_STATUSES.NOT_FOUND_404)
         return;

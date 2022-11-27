@@ -1,4 +1,5 @@
-import {DeviceRepositories, PayloadType} from "../repositories/device-db-repositories";
+import {DeviceRepositories} from "../repositories/device-db-repositories";
+import {PayloadType} from "../types/payloadType";
 
 
 export class DeviceService {

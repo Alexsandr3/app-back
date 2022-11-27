@@ -1,19 +1,22 @@
-import {PostModelClass} from "./schemas";
+import {LikePostModelClass, PostModelClass} from "./schemas";
 import {ObjectId} from "mongodb";
-import {PostsDBType, PostsViewType} from "../types/posts_types";
+import {
+    ExtendedLikesInfoViewModel,
+    LikeDetailsViewModel,
+    LikesPostsDBType,
+    PostsDBType,
+    PostsViewType
+} from "../types/posts_types";
 import {blogsQueryRepositories} from "../composition-root";
+import {LikeStatusType} from "../types/comments_types";
 
 
 export class PostsRepositories {
-    private postWithNewId(object: PostsDBType): PostsViewType {
-        return new PostsViewType(
-            object._id?.toString(),
-            object.title,
-            object.shortDescription,
-            object.content,
-            object.blogId,
-            object.blogName,
-            object.createdAt
+    private LikeDetailsView(object: LikesPostsDBType): LikeDetailsViewModel {
+        return new LikeDetailsViewModel(
+            object.addedAt,
+            object.userId,
+            object.login
         )
     }
 
@@ -30,8 +33,31 @@ export class PostsRepositories {
             blogId,
             blog.name,
             new Date().toISOString())
-        await PostModelClass.create(newPost)
-        return this.postWithNewId(newPost)
+        const post = await PostModelClass.create(newPost)
+        if (!post) return null
+        const postId = post._id.toString()
+        const newestLikes = (await LikePostModelClass
+            .find({parentId: postId, likeStatus: "Like"})
+            .sort({addedAt: "desc"})
+            .limit(3)
+            .lean())
+            .map(newestLikes => this.LikeDetailsView(newestLikes))
+        const extendedLikesInfo = new ExtendedLikesInfoViewModel(
+            0,
+            0,
+            LikeStatusType.None,
+            newestLikes
+        )
+        return new PostsViewType(
+            post._id?.toString(),
+            post.title,
+            post.shortDescription,
+            post.content,
+            post.blogId,
+            post.blogName,
+            post.createdAt,
+            extendedLikesInfo
+        )
     }
 
     async updatePostById(id: string, title: string, shortDescription: string, content: string, blogId: string): Promise<boolean> {
@@ -62,5 +88,17 @@ export class PostsRepositories {
         if (!post) return null
         return post
     }
+
+     async updateStatusPostById(id: string, userId: string, likeStatus: LikeStatusType): Promise<boolean> {
+         try {
+             await LikePostModelClass.updateOne(
+                 {userId: userId, parentId: id},
+                 {$set: {likeStatus}},
+                 {upsert: true})
+             return true
+         } catch (error) {
+             return false
+         }
+     }
 }
 

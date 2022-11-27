@@ -6,9 +6,10 @@ import {v4 as uuidv4} from 'uuid'
 import add from 'date-fns/add'
 import {ObjectId} from "mongodb";
 import {emailManagers} from "../managers/email-managers";
-import {DeviceRepositories, PayloadType} from "../repositories/device-db-repositories";
+import {DeviceRepositories} from "../repositories/device-db-repositories";
 import {randomUUID} from "crypto";
 import {TokensType} from "../types/token_types";
+import {PayloadType} from "../types/payloadType";
 
 export class UsersService {
 
@@ -67,14 +68,14 @@ export class UsersService {
         if (!result) return null;
         const deviceId = randomUUID()
         const userId = user._id.toString()
-        const token = await jwtService.createJwt(userId, deviceId)
+        const token = await jwtService.createJwt(userId, user.accountData.login, deviceId)
         const payloadNew = await jwtService.verifyToken(token.refreshToken)
         await this.deviceRepositories.createDevice(userId, ipAddress, deviceName, deviceId, payloadNew.exp, payloadNew.iat)
         return token
     }
 
-    async refreshToken(payload: PayloadType) {
-        const newTokens = await jwtService.createJwt(payload.userId, payload.deviceId)
+    async refresh(payload: PayloadType) {
+        const newTokens = await jwtService.createJwt(payload.userId, payload.login, payload.deviceId)
         const payloadNew = await jwtService.verifyToken(newTokens.refreshToken)
         const updateDevice = await this.deviceRepositories.updateDateDevice(payloadNew, payload.iat)
         if (!updateDevice) return null
@@ -96,22 +97,35 @@ export class UsersService {
     async _compareHash(password: string, hash: string): Promise<boolean> {
         return await bcrypt.compare(password, hash)
     }
+    async _checkCodeConfirm(user: UsersAcountDBType, code: string){
+        if (user.emailConfirmation.isConfirmation) return false;
+        if (user.emailConfirmation.confirmationCode !== code) return false;
+        if (user.emailConfirmation.expirationDate < new Date()) return false;
+        return user
+    }
+    async _checkUser(user: UsersAcountDBType){
+        if (user.emailConfirmation.isConfirmation) return false;
+        if (user.emailConfirmation.expirationDate < new Date()) return false;
+        return user
+    }
 
     async confirmByCode(code: string): Promise<boolean> {
         const user = await this.usersRepositories.findUserByConfirmationCode(code)
         if (!user) return false
-        if (user.emailConfirmation.isConfirmation) return false;
-        if (user.emailConfirmation.confirmationCode !== code) return false;
-        if (user.emailConfirmation.expirationDate < new Date()) return false;
+        await this._checkCodeConfirm(user, code)
+        //if (user.emailConfirmation.isConfirmation) return false;
+        //if (user.emailConfirmation.confirmationCode !== code) return false;
+        //if (user.emailConfirmation.expirationDate < new Date()) return false;
         return await this.usersRepositories.updateConfirmation(user._id)
     }
 
     async recoveryByCode(newPassword: string, code: string): Promise<boolean> {
         const user = await this.usersRepositories.findUserByRecoveryCode(code)
         if (!user) return false
-        if (user.emailRecovery.isConfirmation) return false;
-        if (user.emailRecovery.recoveryCode !== code) return false;
-        if (user.emailConfirmation.expirationDate < new Date()) return false;
+        await this._checkCodeConfirm(user, code)
+        //if (user.emailRecovery.isConfirmation) return false;
+        //if (user.emailRecovery.recoveryCode !== code) return false;
+        //if (user.emailConfirmation.expirationDate < new Date()) return false;
         const passwordHash = await this._generateHash(newPassword)
         return await this.usersRepositories.updateRecovery(user._id, passwordHash)
     }
@@ -119,8 +133,9 @@ export class UsersService {
     async resendingEmail(email: string) {
         const user = await this.usersRepositories.findByLoginOrEmail(email)
         if (!user) return false;
-        if (user.emailConfirmation.isConfirmation) return false;
-        if (user.emailConfirmation.expirationDate < new Date()) return false;
+        await this._checkUser(user)
+        //if (user.emailConfirmation.isConfirmation) return false;
+        //if (user.emailConfirmation.expirationDate < new Date()) return false;
         const code: any = {
             emailConfirmation: {
                 confirmationCode: uuidv4(),
@@ -140,8 +155,9 @@ export class UsersService {
     async recoveryEmail(email: string) {
         const user = await this.usersRepositories.findByLoginOrEmail(email)
         if (!user) return true;
-        if (user.emailConfirmation.isConfirmation) return false;
-        if (user.emailConfirmation.expirationDate < new Date()) return false;
+        await this._checkUser(user)
+        //if (user.emailConfirmation.isConfirmation) return false;
+        //if (user.emailConfirmation.expirationDate < new Date()) return false;
         const code: any = {
             emailRecovery: {
                 recoveryCode: randomUUID(),

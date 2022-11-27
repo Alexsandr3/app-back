@@ -20,7 +20,7 @@ export class CommentsViewType {
                 public likesInfo: LikesInfoViewModel) {
     }
 }
-
+{}
 export class LikeDBType {
     constructor(public _id: ObjectId,
                 public userId: string,

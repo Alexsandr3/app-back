@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import {BlogsDBType} from "../types/blogs_types";
 import {ObjectId} from "mongodb";
-import {PostsDBType} from "../types/posts_types";
+import {LikesPostsDBType, PostsDBType} from "../types/posts_types";
 import {UsersAcountDBType} from "../types/users_types";
 import {CommentsDBType, LikeDBType, LikeStatusType} from "../types/comments_types";
 import {IpClientDBType} from "../types/ip-client_types";
@@ -73,6 +73,16 @@ const likeStatusSchema = new mongoose.Schema<LikeDBType>({
     parentId: {type: String, required: true},
     likeStatus: {type: String, default: 'None', enum: LikeStatusType}
 });
+const likesPostsStatusSchema = new mongoose.Schema<LikesPostsDBType>({
+    _id: ObjectId,
+    addedAt: {type: String, required: true},
+    userId: {type: String, required: true},
+    parentId: {type: String, required: true},
+    login: {type: String, required: true},
+    likeStatus: {type: String, default: 'None', enum: LikeStatusType}
+});
+
+
 export const BlogModelClass = mongoose.model('blogs', blogSchema);
 export const PostModelClass = mongoose.model('posts', postSchema);
 export const UserModelClass = mongoose.model('users', userSchema);
@@ -80,3 +90,4 @@ export const CommentModelClass = mongoose.model('comments', commentSchema);
 export const IpModelClass = mongoose.model('ip', ipSchema);
 export const DeviceModelClass = mongoose.model('device', deviceSchema);
 export const LikeModelClass = mongoose.model('likes', likeStatusSchema);
+export const LikePostModelClass = mongoose.model('likesPosts', likesPostsStatusSchema);
