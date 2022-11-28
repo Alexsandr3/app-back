@@ -27,19 +27,19 @@ import {BodyParams_CommentInputModel} from "../models/BodyParams_CommentInputMod
 import {postsQueryRepositories, postsService} from "../composition-root";
 import {CommentsViewType} from "../types/comments_types";
 import {BodyParams_LikeInputModel} from "../models/BodyParams_LikeInputModel";
-import {getUserIdFromRefreshTokena} from "../middlewares/get-user-id-from-refresh-tokena";
+import {getUserIdFromAccessTokena} from "../middlewares/get-user-id-from-access-tokena";
 
 
 export const postsRoute = Router({})
 
 postsRoute.put('/:id/like-status', authMiddleware, validationLikeStatusMiddleware, async (req: RequestWithParamsAndBody<{ id: string }, BodyParams_LikeInputModel>, res: Response) => {
-    const result = await postsService.updateLikeStatus(req.params.id, req.body.likeStatus, req.user.id)
+    const result = await postsService.updateLikeStatus(req.params.id, req.body.likeStatus, req.user)
     if (!result) {
         return res.sendStatus(HTTP_STATUSES.NOT_FOUND_404)
     }
     return res.sendStatus(HTTP_STATUSES.NO_CONTENT_204)
 })
-postsRoute.get('/', pageValidations, getUserIdFromRefreshTokena, async (req: RequestWithQeury<QeuryParams_GetPostsModel>, res: Response<PaginatorType<PostsViewType[]>>) => {
+postsRoute.get('/', pageValidations, getUserIdFromAccessTokena, async (req: RequestWithQeury<QeuryParams_GetPostsModel>, res: Response<PaginatorType<PostsViewType[]>>) => {
     let data = req.query
     let dataForRepos = {
         pageNumber: 1,
@@ -48,7 +48,7 @@ postsRoute.get('/', pageValidations, getUserIdFromRefreshTokena, async (req: Req
         sortDirection: SortDirectionType.Desc,
         ...data,
     }
-    const posts = await postsQueryRepositories.findPosts(dataForRepos, req.user);
+    const posts = await postsQueryRepositories.findPosts(dataForRepos, req.userId);
     return res.send(posts)
 })
 postsRoute.post('/', prePostsValidation, async (req: RequestWithBody<BodyParams_PostInputModel>, res: Response<PostsViewType | null>) => {
@@ -59,8 +59,8 @@ postsRoute.post('/', prePostsValidation, async (req: RequestWithBody<BodyParams_
     const newPost = await postsService.createPost(title, shortDescription, content, blogId)
     return res.status(HTTP_STATUSES.CREATED_201).send(newPost)
 })
-postsRoute.get('/:id', checkIdValidForMongodb, getUserIdFromRefreshTokena, async (req: RequestWithParams<URIParams_PostModel>, res: Response<PostsViewType>) => {
-    const post = await postsQueryRepositories.findByIdPost(req.params.id, req.user)
+postsRoute.get('/:id', checkIdValidForMongodb, getUserIdFromAccessTokena, async (req: RequestWithParams<URIParams_PostModel>, res: Response<PostsViewType>) => {
+    const post = await postsQueryRepositories.findByIdPost(req.params.id, req.userId)
     if (!post) return res.sendStatus(HTTP_STATUSES.NOT_FOUND_404)
     return res.send(post)
 })
@@ -102,11 +102,11 @@ postsRoute.post('/:postId/comments', authMiddleware, checkPostIdValidForMongodb,
     }
     return res.status(HTTP_STATUSES.CREATED_201).send(createdCommetn)
 })
-postsRoute.get('/:postId/comments', getUserIdFromRefreshTokena, checkPostIdValidForMongodb, pageNumberValidation, pageSizeValidation, async (req: RequestWithParamsAndQeury<{ postId: string }, QeuryParams_GetPostsModel>,
+postsRoute.get('/:postId/comments', getUserIdFromAccessTokena, checkPostIdValidForMongodb, pageNumberValidation, pageSizeValidation, async (req: RequestWithParamsAndQeury<{ postId: string }, QeuryParams_GetPostsModel>,
                                                                                                                                             res: Response) => {
 
     let data = req.query
-    let user = req.user
+    let userId = req.userId
     let postId = req.params.postId
     let dataForReposit = {
         pageNumber: 1,
@@ -115,7 +115,7 @@ postsRoute.get('/:postId/comments', getUserIdFromRefreshTokena, checkPostIdValid
         sortDirection: SortDirectionType.Desc,
         ...data,
     }
-    const comments = await postsQueryRepositories.findCommentsByIdPost(postId, dataForReposit, user)
+    const comments = await postsQueryRepositories.findCommentsByIdPost(postId, dataForReposit, userId)
     if (!comments) {
         res.sendStatus(HTTP_STATUSES.NOT_FOUND_404)
         return;

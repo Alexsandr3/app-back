@@ -9,6 +9,7 @@ import {
 } from "../types/posts_types";
 import {blogsQueryRepositories} from "../composition-root";
 import {LikeStatusType} from "../types/comments_types";
+import {UsersViewType} from "../types/users_types";
 
 
 export class PostsRepositories {
@@ -89,12 +90,11 @@ export class PostsRepositories {
         return post
     }
 
-     async updateStatusPostById(id: string, userId: string, likeStatus: LikeStatusType): Promise<boolean> {
+     async updateStatusPostById(id: string, user: UsersViewType, likeStatus: LikeStatusType): Promise<boolean> {
          try {
              await LikePostModelClass.updateOne(
-                 {userId: userId, parentId: id},
-                 {$set: {likeStatus}},
-                 {upsert: true})
+                 {userId: user.id, parentId: id},
+                 {$set: {likeStatus: likeStatus, addedAt: new Date().toISOString(), login: user.login}})
              return true
          } catch (error) {
              return false

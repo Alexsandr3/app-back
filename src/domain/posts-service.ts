@@ -2,10 +2,12 @@ import {PostsRepositories} from "../repositories/posts-db-repositories";
 import {PostsViewType} from "../types/posts_types";
 import {CommentsViewType, LikeStatusType} from "../types/comments_types";
 import {CommentsRepositories} from "../repositories/comments-db-repositories";
+import {UsersViewType} from "../types/users_types";
 
 export class PostsService {
 
-    constructor(protected postsRepositories: PostsRepositories, protected commentsRepositories: CommentsRepositories) {}
+    constructor(protected postsRepositories: PostsRepositories, protected commentsRepositories: CommentsRepositories) {
+    }
 
     async createPost(title: string, shortDescription: string, content: string, blogId: string): Promise<PostsViewType | null> {
         return await this.postsRepositories.createPost(title, shortDescription, content, blogId)
@@ -24,10 +26,11 @@ export class PostsService {
         if (!post) return null
         return await this.commentsRepositories.createCommentByIdPost(post._id, content, userId, userLogin)
     }
-    async updateLikeStatus(id: string, likeStatus: LikeStatusType, userId: string): Promise<boolean> {
+
+    async updateLikeStatus(id: string, likeStatus: LikeStatusType, user: UsersViewType): Promise<boolean> {
         const post = await this.postsRepositories.findPost(id)
         if (!post) return false
-        return this.postsRepositories.updateStatusPostById(id, userId, likeStatus)
+        return this.postsRepositories.updateStatusPostById(id, user, likeStatus)
     }
 }
 

@@ -31,7 +31,7 @@ export class ExtendedLikesInfoViewModel {
         public likesCount: number,
         public dislikesCount: number,
         public myStatus: string,
-        public newestLikes: LikeDetailsViewModel[]
+        public newestLikes: Array<LikeDetailsViewModel>
     ) {
     }
 }

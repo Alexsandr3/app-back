@@ -3,9 +3,9 @@ import {jwtService} from "../application/jwt-servise";
 
 
 export const getUserIdFromAccessTokena = async (req: Request, res: Response, next: NextFunction) => {
-    let userId = null
+    //let user = null
     if (!req.headers.authorization) {
-       userId = null
+       req.userId = null
     } else {
         const token = req.headers.authorization.split(' ')[1]
         const foundUserId = await jwtService.getUserIdByToken(token)

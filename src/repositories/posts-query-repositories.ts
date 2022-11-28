@@ -10,7 +10,7 @@ import {PaginatorType} from "../types/PaginatorType";
 import {PaginatorPostsBlogType} from "../types/blogs_types";
 import {CommentsDBType, CommentsViewType, LikesInfoViewModel, LikeStatusType} from "../types/comments_types";
 import {CommentModelClass, LikeModelClass, LikePostModelClass, PostModelClass} from "./schemas";
-import {PayloadType} from "../types/payloadType";
+
 
 
 export class PostsQueryRepositories {
@@ -37,7 +37,7 @@ export class PostsQueryRepositories {
             likesInfo)
     }
 
-    private LikeDetailsView(object: LikesPostsDBType): LikeDetailsViewModel {
+    private async LikeDetailsView(object: LikesPostsDBType): Promise<LikeDetailsViewModel> {
         return new LikeDetailsViewModel(
             object.addedAt,
             object.userId,
@@ -45,27 +45,28 @@ export class PostsQueryRepositories {
         )
     }
 
-    async postForView(post: PostsDBType, user: PayloadType): Promise<PostsViewType> {
+    async _postForView(post: PostsDBType, userId: string | null): Promise<PostsViewType> {
         let myStatus: string = LikeStatusType.None
-        if (user.userId) {
-            const result = await LikePostModelClass.findOne({userId: user.userId, parentId: post._id})
+        if (userId) {
+            const result = await LikePostModelClass.findOne({userId: userId, parentId: post._id})
             if (result) {
                 myStatus = result.likeStatus
             }
         }
         const totalCountLike = await LikePostModelClass.countDocuments({parentId: post._id, likeStatus: "Like"})
         const totalCountDislike = await LikePostModelClass.countDocuments({parentId: post._id, likeStatus: "Dislike"})
-        const newestLikes = (await LikePostModelClass
-            .find({parentId: post._id, likeStatus: "Like"})
+        const newestLikes = await LikePostModelClass
+            .find({parentId: post._id.toString(), likeStatus: "Like"})
             .sort({addedAt: "desc"})
             .limit(3)
-            .lean())
-            .map(newestLikes => this.LikeDetailsView(newestLikes))
+            .lean()
+        const mappedNewestLikes = newestLikes.map(async like => await this.LikeDetailsView(like))
+        const itemsLikes = await Promise.all(mappedNewestLikes)
         const extendedLikesInfo = new ExtendedLikesInfoViewModel(
             totalCountLike,
             totalCountDislike,
             myStatus,
-            newestLikes
+            itemsLikes
         )
         return new PostsViewType(
             post._id.toString(),
@@ -79,7 +80,7 @@ export class PostsQueryRepositories {
         )
     }
 
-    async findByIdPost(id: string, user: PayloadType): Promise<PostsViewType | null> {
+    async findByIdPost(id: string, userId: string | null): Promise<PostsViewType | null> {
         if (!ObjectId.isValid(id)) {
             return null
         }
@@ -87,19 +88,18 @@ export class PostsQueryRepositories {
         if (!post) {
             return null
         } else {
-            return this.postForView(post, user)
-            //return postWithNewId(result)
+            return this._postForView(post, userId)
         }
     }
 
-    async findPosts(data: ForFindPostsType, user: PayloadType, blogId?: string): Promise<PaginatorType<PostsViewType[]>> {
+    async findPosts(data: ForFindPostsType, userId: string | null, blogId?: string): Promise<PaginatorType<PostsViewType[]>> {
         const foundPosts = await PostModelClass
             .find({})
             .skip((data.pageNumber - 1) * data.pageSize)
             .limit(data.pageSize)
             .sort({[data.sortBy]: data.sortDirection})
             .lean()
-        const mappedPosts = foundPosts.map(async post => await this.postForView(post, user))
+        const mappedPosts = foundPosts.map(async post => await this._postForView(post, userId))
         const itemsPosts = await Promise.all(mappedPosts)
         const totalCount = await PostModelClass.countDocuments(blogId ? {blogId} : {})
         const pagesCountRes = Math.ceil(totalCount / data.pageSize)
@@ -113,16 +113,15 @@ export class PostsQueryRepositories {
 
     }
 
-    async findCommentsByIdPost(postId: string, data: PaginatorPostsBlogType, user: PayloadType) {
-        const post = await this.findByIdPost(postId, user)
+    async findCommentsByIdPost(postId: string, data: PaginatorPostsBlogType, userId: string | null) {
+        const post = await this.findByIdPost(postId, userId)
         if (!post) return null
         const comments = await CommentModelClass.find({postId: postId})
             .skip((data.pageNumber - 1) * data.pageSize)
             .limit(data.pageSize)
             .sort({[data.sortBy]: data.sortDirection}).lean()
-        const mappedComments = comments.map(async comment => await this.commentWithNewId(comment, user.userId))
+        const mappedComments = comments.map(async comment => await this.commentWithNewId(comment, userId))
         const itemsComments = await Promise.all(mappedComments)
-        // if (!comments) return null
         const totalCountComments = await CommentModelClass.countDocuments(postId ? {postId} : {})
         const pagesCountRes = Math.ceil(totalCountComments / data.pageSize)
         return new PaginatorType(
