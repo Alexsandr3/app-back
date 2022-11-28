@@ -13,7 +13,7 @@ import {UsersViewType} from "../types/users_types";
 
 
 export class PostsRepositories {
-    private LikeDetailsView(object: LikesPostsDBType): LikeDetailsViewModel {
+    private async _LikeDetailsView(object: LikesPostsDBType): Promise<LikeDetailsViewModel> {
         return new LikeDetailsViewModel(
             object.addedAt,
             object.userId,
@@ -37,17 +37,18 @@ export class PostsRepositories {
         const post = await PostModelClass.create(newPost)
         if (!post) return null
         const postId = post._id.toString()
-        const newestLikes = (await LikePostModelClass
+        const newestLikes = await LikePostModelClass
             .find({parentId: postId, likeStatus: "Like"})
             .sort({addedAt: "desc"})
             .limit(3)
-            .lean())
-            .map(newestLikes => this.LikeDetailsView(newestLikes))
+            .lean()
+        const mappedNewestLikes = newestLikes.map(async like => await this._LikeDetailsView(like))
+        const itemsLikes = await Promise.all(mappedNewestLikes)
         const extendedLikesInfo = new ExtendedLikesInfoViewModel(
             0,
             0,
             LikeStatusType.None,
-            newestLikes
+            itemsLikes
         )
         return new PostsViewType(
             post._id?.toString(),
