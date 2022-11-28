@@ -92,14 +92,12 @@ export class PostsRepositories {
     }
 
      async updateStatusPostById(id: string, user: UsersViewType, likeStatus: LikeStatusType): Promise<boolean> {
-         try {
-             await LikePostModelClass.updateOne(
-                 {userId: user.id, parentId: id},
-                 {$set: {likeStatus: likeStatus, addedAt: new Date().toISOString(), login: user.login}})
-             return true
-         } catch (error) {
-             return false
-         }
+          const like = await LikePostModelClass.updateOne(
+              {userId: user.id, parentId: id},
+              {$set: {likeStatus: likeStatus, addedAt: new Date().toISOString(), login: user.login}},
+              {upsert: true})
+          if (!like) return false
+          return true
      }
 }
 
